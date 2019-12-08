@@ -26,5 +26,6 @@
 	background-color: #eee;
 	padding: 10px;
 	font-size: .75rem;
-	margin-top: 1rem;
+    margin-top: 1rem;
+    hyphens: auto;
 }

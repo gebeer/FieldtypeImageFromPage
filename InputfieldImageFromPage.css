@@ -1,0 +1,30 @@
+.InputfieldImageFromPage img {
+    cursor: pointer;
+}
+
+.InputfieldImageFromPage .uk-thumbnav li {
+    flex: 0 0 auto;
+    margin-bottom: 20px;
+}
+
+.InputfieldImageFromPage .uk-panel {
+    border: 1px solid #d9e1ea;
+    padding: 25px;
+    min-width: 100px;
+    display: inline-block;
+    position: relative;
+}
+
+.InputfieldImageFromPage .uk-panel span {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    cursor: pointer;
+}
+
+.InputfieldImageFromPage .uk-panel > div {
+	background-color: #eee;
+	padding: 10px;
+	font-size: .75rem;
+	margin-top: 1rem;
+}

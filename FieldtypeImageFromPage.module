@@ -1,0 +1,411 @@
+<?php
+
+namespace ProcessWire;
+
+/**
+ * Fieldtype 'Image Picker' stores a reference to an image from another page from selected image in the associated InputfieldImageFromPage.
+ * The image can be rendered in template files
+ * In case of SVG the file contents can be rendered inline
+ *
+ * ©2019 Gerhard Sitzmann
+ *
+ * ProcessWire 3.x
+ * Copyright (C) 2010 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class FieldtypeImageFromPage extends Fieldtype
+{
+
+    /**
+     * Return an array of module information
+     *
+     * @return array
+     */
+    public static function getModuleInfo()
+    {
+        return array(
+            'title' => __('Image Reference From Another Page'),
+            'version' => 001,
+            'summary' => __('Fieldtype that stores a reference to a single image from another page'),
+            'author' => 'Gerhard Sitzmann',
+            'href' => '',
+            'installs' => [
+                'InputfieldImageFromPage',
+                'ImageFromPageHookHelper'
+            ],
+            'requires' => [
+                'PHP>=7.1.0',
+                'ProcessWire>=3.0.120'
+            ],
+        );
+    }
+
+    /**
+     * Include ImageFromPage class, which serves as the value for fields of type FieldtypeImageFromPage
+     *
+     */
+    public function __construct()
+    {
+        require_once(dirname(__FILE__) . '/ImageFromPage.php');
+    }
+
+
+    /**
+     * Return all compatible Fieldtypes 
+     * 
+     * @param Field $field
+     * @return null
+     *
+     */
+    public function ___getCompatibleFieldtypes(Field $field)
+    {
+        // there are no other fieldtypes compatible with this one
+        return null;
+    }
+
+
+    /**
+     * Sanitize the value for runtime storage and return it.
+     * @param Page $page
+     * @param Field $field
+     * @param ImageFromPage $value
+     * @return ImageFromPage
+     */
+    public function sanitizeValue(Page $page, Field $field, $value)
+    {
+        // if it's not a MapMarker, then just return a blank ImageFromPage
+        if (!$value instanceof ImageFromPage) $value = $this->getBlankValue($page, $field);
+
+        // if the filename changed, tell the $page that this field changed
+        if ($value->isChanged('filename')) $page->trackChange($field->name);
+
+        return $value;
+    }
+
+    /**
+     * Get a blank value used by this fieldtype
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @return ImageFromPage
+     *
+     */
+    public function getBlankValue(Page $page, Field $field)
+    {
+        return new ImageFromPage();
+    }
+
+    /**
+     * Format value for output
+     * @param Page $page
+     * @param Field $field
+     * @param ImageFromPage $value
+     * @return Pageimage
+     *    
+     */
+    public function ___formatValue(Page $page, Field $field, $value)
+    {
+        // if ($field->outputFormat === 7) return $this->sleepValue($page, $field, $value);
+        if($value->filename && $value->pageid != 0) {
+            $pageimage = $this->wire('pages')->get($value->pageid)->get($field->imagesfield)->getFile($value->filename);
+            if ($pageimage && $pageimage instanceof Pageimage) {
+                $this->addHookProperty("Pageimage::svgcontent", $this, 'addPropertySvgcontent');
+                return $pageimage;
+            }
+        }
+        throw new WireException("The referenced image does not exist");
+    }
+
+
+    /**
+     * Given a raw value (value as stored in database), return the value as it would appear in a Page object.
+     *
+     * @param Page $page
+     * @param Field $field
+     * @param string|int $value
+     * @return void
+     */
+    public function ___wakeupValue(Page $page, Field $field, $value)
+    {
+        // get a blank MapMarker instance
+        $imagefrompage = $this->getBlankValue($page, $field);
+
+        // populate the image
+        $imagefrompage->filename = $value['data'];
+        $imagefrompage->pageid = $value['pageid'];
+        $imagefrompage->setTrackChanges(true);
+
+        return $imagefrompage;
+    }
+
+    /**
+     * Given an 'awake' value, as set by wakeupValue(), convert the value back to a basic type for storage in database.
+     *
+     * @param Page $page
+     * @param Field $field
+     * @param object $value
+     * @return void
+     */
+    public function ___sleepValue(Page $page, Field $field, $value)
+    {
+
+        $imagefrompage = $value;
+
+        if (!$imagefrompage instanceof ImageFromPage)
+            throw new WireException("Expecting an instance of ImageFromPage");
+
+        $sleepValue = array(
+            'data' => $imagefrompage->filename,
+            'pageid' => $imagefrompage->pageid
+        );
+
+        return $sleepValue;
+    }
+
+    /**
+     * Return stripped file contents (only for svg)
+     * returns only the <svg> node from the svg document sincs this is all we need to inline an svg
+     * @param Pageimage $image
+     * @return mixed string|null
+     * @throws WireException
+     */
+    public function getFileContent(Pageimage $image)
+    {
+        $mimeTypes = ['image/svg', 'image/svg+xml'];
+        if (strtolower($image->ext) !== 'svg' || !in_array($this->getFileMimetype($image), $mimeTypes)) {
+            return null;
+        } else {
+            $doc = new \DOMDocument;
+            $doc->loadXML(file_get_contents($image->filename));
+            $xpath = new \DOMXPath($doc);
+            $xpath->registerNamespace('svg', 'http://www.w3.org/2000/svg');
+            $svg = $xpath->query('/svg:svg')->item(0);
+            if ($svg) {
+                return $doc->saveXML($svg);
+            } else {
+                $fileUrl = $this->getFileUrl($field, $value);
+                throw new WireException("The SVG file at {$fileUrl} seems corrupt. Could not find SVG tag in file");
+            }
+        }
+    }
+
+    /**
+     * Return file mime type
+     * @param Pageimage $image
+     * @return string 
+     */
+    public function getFileMimetype(Pageimage $image)
+    {
+        return mime_content_type($image->filename);
+    }
+
+    public function ___addPropertySvgcontent(Hookevent $event)
+    {
+        $event->return = $this->getFileContent($event->object);
+    }
+
+    /**
+     * Return new instance of the Inputfield associated with this Fieldtype
+     *
+     * @param Page $page
+     * @param Field $field
+     * @return Inputfield
+     *
+     */
+    public function getInputfield(Page $page, Field $field)
+    {
+        $inputfield = $this->modules->get('InputfieldImageFromPage');
+        $inputfield->set('folderPath', $field->folderPath);
+        $inputfield->set('previewWidth', $field->previewWidth);
+        $inputfield->set('thumbWidth', $field->thumbWidth);
+        $inputfield->set('imagespage', $field->imagespage);
+        $inputfield->set('imagesfield', $field->imagesfield);
+        return $inputfield;
+    }
+
+    /**
+     * Return the database schema in specified format
+     * 
+     * @param Field $field
+     * @return array
+     *
+     */
+    public function getDatabaseSchema(Field $field)
+    {
+
+        // get the default schema
+        $schema = parent::getDatabaseSchema($field);
+
+        $schema['data'] = "VARCHAR(255) NOT NULL DEFAULT ''";     // image filename without path (reusing the 'data' field from default schema)
+        $schema['pageid'] = "INT NOT NULL";    // page id of page that holds the referenced image
+
+        $schema['keys']['data'] = 'FULLTEXT KEY `data` (`data`)';
+        $schema['keys']['pageid'] = "KEY pageid (pageid)";
+
+        if ($field->id) $this->updateDatabaseSchema($field, $schema);
+
+        return $schema;
+    }
+
+    /**
+     * Update the DB schema, if necessary
+     * 
+     * @param Field $field
+     * @param array $schema
+     *
+     */
+    protected function updateDatabaseSchema(Field $field, array $schema)
+    {
+
+        $requiredVersion = 1;
+        $schemaVersion = (int) $field->get('schemaVersion');
+
+        if ($schemaVersion >= $requiredVersion) {
+            // already up-to-date
+            return;
+        }
+
+        if ($schemaVersion == 0) {
+            // update schema to v1: add 'pageid' column	
+            $schemaVersion = 1;
+            $database = $this->wire('database');
+            $table = $database->escapeTable($field->getTable());
+            $query = $database->prepare("SHOW TABLES LIKE '$table'");
+            $query->execute();
+            $row = $query->fetch(\PDO::FETCH_NUM);
+            $query->closeCursor();
+            if (!empty($row)) {
+                $query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE field='pageid'");
+                $query->execute();
+                if (!$query->rowCount()) try {
+                    $database->exec("ALTER TABLE `$table` ADD pageid $schema[pageid] AFTER data");
+                    $this->message("Added 'pageid' column to '$field->table'");
+                } catch (Exception $e) {
+                    $this->error($e->getMessage());
+                }
+            }
+        }
+
+        $field->set('schemaVersion', $schemaVersion);
+        $field->save();
+    }
+
+    /**
+     * Match values for PageFinder
+     * 
+     * @param DatabaseQuerySelect $query
+     * @param string $table
+     * @param string $subfield
+     * @param string $operator
+     * @param string $value
+     * @return DatabaseQuerySelect
+     *
+     */
+    public function getMatchQuery($query, $table, $subfield, $operator, $value)
+    {
+        if (!$subfield || $subfield == 'filename') $subfield = 'data';
+        if ($subfield != 'data' || $this->wire('database')->isOperator($operator)) {
+            // if dealing with something other than filename, or operator is native to SQL,
+            // then let Fieldtype::getMatchQuery handle it instead
+            return parent::getMatchQuery($query, $table, $subfield, $operator, $value);
+        }
+        // if we get here, then we're performing either %= (LIKE and variations) or *= (FULLTEXT and variations)
+        $ft = new DatabaseQuerySelectFulltext($query);
+        $ft->match($table, $subfield, $operator, $value);
+        return $query;
+    }
+
+    /**
+     * Get the inputfield used for configuration of this Fieldtype.
+     *
+     * @param Field $field
+     * @return InputfieldWrapper
+     *
+     */
+    public function ___getConfigInputfields(Field $field)
+    {
+        $errorimgpage = false;
+        if ($field->imagespage) {
+            $hasImagefield = false;
+            $imagespage = $this->pages->get("id={$field->imagespage}, include=hidden");
+            foreach ($imagespage->fieldgroup as $f) {
+                if ($f->type instanceof FieldtypeImage) {
+                    $hasImagefield = true;
+                    break;
+                }
+            }
+            if (!$hasImagefield) {
+                $errorimgpage = $this->_("The selected page has no field for images. Choose a page with images field or add an images field to this page's template");
+            }
+        }
+
+        $inputfields = parent::___getConfigInputfields($field);
+
+        $f = $this->modules->get('InputfieldPageListSelect');
+        $f->attr('name', 'imagespage');
+        $f->parent_id = 1;
+        $f->label = $this->_("Choose a page to get images from");
+        $f->description = $this->_("This page and it's child pages will be used to supply images");
+        $f->attr('value', $field->imagespage);
+        $f->required(1);
+        $f->getErrors(true);
+        if ($errorimgpage) $f->error($errorimgpage);
+        $inputfields->add($f);
+
+        if (!$errorimgpage) {
+            $f = $this->modules->get('InputfieldRadios');
+            $f->attr('name', 'imagesfield');
+            $f->optionColumns = 1;
+            if($field->imagespage) {
+                $f->label = $this->_("Choose an images field on the template of the page above");
+                $f->required(1);
+                $fields = array_filter($imagespage->fieldgroup->getArray(), function ($field) {
+                    return $field->type instanceof FieldtypeImage;
+                });
+                $options = array();
+                foreach ($fields as $fd) $options[$fd->name] = $fd->name;
+                $f->options = $options;
+                $f->attr('value', $field->imagesfield);
+            } else {
+                $f->label = $this->_("You must submit changes to the field above first");
+            }
+
+            $inputfields->add($f);
+        }
+
+        $f = $this->modules->get('InputfieldText');
+        $f->attr('name', 'previewWidth');
+        $f->label = $this->_("Width of the selected image in px");
+        $f->description = $this->_('Sets the width of the selected image inside the inputfield');
+        $f->notice = $this->_('default is 200px');
+        $f->attr('value', $field->previewWidth);
+        $inputfields->add($f);
+
+        $f = $this->modules->get('InputfieldText');
+        $f->attr('name', 'thumbWidth');
+        $f->label = $this->_("Width of thumbnail images in px");
+        $f->description = $this->_('Sets the width of the thumbnail images inside the inputfield');
+        $f->notice = $this->_('default is 100px');
+        $f->attr('value', $field->thumbWidth);
+        $inputfields->add($f);
+
+        $f = $this->modules->get('InputfieldMarkup');
+        $f->attr('name', 'FieldtypeImageFromPage_instructions');
+        $f->label = $this->_("How to use this field in a template");
+        $f->attr('value', '<code>&lt;img src="&lt;?= $page->' . $field->name . '->url ?&gt;"&gt; // renders the image<br>
+        $page->' . $field->name . '->svgcontent // returns the text content for inlining SVG (works only with SVG images)<br><br>
+        All properties and methods for Pageimage can be used (resizing, cropping etc.)<br>
+        $thumb = $page->' . $field->name . '->width(100)<br><br>
+        Field is fully searchable for image filename by API<br>
+        $pages->find("' . $field->name . '.filename=xyz.png")
+        </code>');
+        $inputfields->add($f);
+
+        return $inputfields;
+    }
+}

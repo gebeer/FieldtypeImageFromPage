@@ -1,0 +1,228 @@
+<?php
+
+namespace ProcessWire;
+
+/**
+ * Inputfield 'Image Picker' provides a means for selecting images from a predefined page and it's children.
+ * Per field you can set a page to list from.
+ *
+ * ©2019 Gerhard Sitzmann
+ *
+ * ProcessWire 3.x
+ * Copyright (C) 2010 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class InputfieldImageFromPage extends Inputfield implements Module
+{
+
+    /**
+     * holds all pages with images
+     *
+     * @var Pages
+     */
+    protected $imagePages;
+
+    /**
+     * Return an array of module information
+     *
+     * @return array
+     */
+    public static function getModuleInfo()
+    {
+        return array(
+            'title' => 'Select Image From Page',
+            'version' => 001,
+            'summary' => __('Inputfield to select a single image from images on a predefined page and it\'s children.'),
+            'author' => 'Gerhard Sitzmann',
+            'href' => '',
+            'requires' => array(
+                'FieldtypeImageFromPage',
+                'PHP>=7.1.0',
+                'ProcessWire>=3.0.120'
+            )
+        );
+    }
+
+    /**
+     * populates properties
+     *
+     * @return void
+     */
+    public function populateValues()
+    {
+        // set properties from field settings
+        // foreach ($this->hasField->data as $key => $value) $this->set($key, $value);
+        $imagePage = $this->wire('pages')->find($this->imagespage, array('include' => 'hidden'));
+        $this->imagePages = $imagePage->add($imagePage->first()->children('include=hidden'));
+    }
+
+    /**
+     * Set an attribute to this Inputfield
+     *
+     * In this case, we just capture the 'value' attribute and make sure it's something valid
+     * 
+     * @param string $key
+     * @param mixed $value
+     * @return $this
+     * @throws WireException
+     *
+     */
+    public function setAttribute($key, $value)
+    {
+
+        if ($key == 'value' && !$value instanceof ImageFromPage && !is_null($value)) {
+            throw new WireException("This input only accepts a ImageFromPage for it's value");
+        }
+
+        return parent::setAttribute($key, $value);
+    }
+
+    public function isEmpty()
+    {
+        return (!$this->value);
+    }
+
+    /**
+     * Return the completed output of Inputfield select file
+     *
+     * @return string
+     *
+     */
+    public function ___render()
+    {
+        $this->populateValues();
+        $id = $this->attr('id');
+        $name = $this->attr('name');
+        $value = $this->attr('value');
+        if($value->pageid == 0) {
+            $message = $this->_("The referenced image was deleted. Choose a new image");
+            $this->page->error($this->_("The referenced image was deleted. Choose a new image"));
+            $this->error($message);
+        }
+        $out = "<p>";
+        $out .= $this->renderSelectedImage($value);
+        $out .= $this->renderInputs($name, $value);
+        $out .= $this->renderThumbnails();
+        $out .= "</p>";
+
+        return $out;
+    }
+
+    public function renderSelectedImage($value)
+    {
+        $previewWidth = ($this->previewWidth) ? $this->previewWidth : 200;
+        $blankSrc = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN89x8AAuEB74Y0o2cAAAAASUVORK5CYII=';
+        if ($value && $value->filename) {
+            $image = $this->wire('pages')->get($value->pageid)->get($this->imagesfield)->getFile($value->filename);
+        }
+        $url = (isset($image)) ? $image->width($previewWidth)->url : $blankSrc;
+        $info = (isset($image)) ? $this->renderTooltip($image) : '';
+        $out = "<div class='uk-panel uk-panel-box uk-margin-bottom'>
+        <span uk-icon='icon: trash' uk-tooltip='title: Remove Image'></span>
+        <img src='{$url}' style='width: {$previewWidth}px; max-width: {$previewWidth}px' data-src='{$blankSrc}'>
+        <div class='uk-thumbnail-caption' style='max-width: {$previewWidth}px'>{$info}</div>";
+        $out .= "</div>";
+
+        return $out;
+    }
+
+
+    public function renderInputs($name, $value)
+    {
+        return "<div>
+        <input type='hidden' class='imagefrompage_filename' name='_{$name}_filename' id='_{$name}_filename' value='{$value->filename}' \>
+        <input type='hidden' class='imagefrompage_pageid' name='_{$name}_pageid' id='_{$name}_pageid' value='{$value->pageid}' \>
+        </div>";
+    }
+
+    public function renderThumbnails()
+    {
+        $wrapper = new InputfieldWrapper;
+        foreach ($this->imagePages as $p) $wrapper->add($this->renderThumbnailsForPage($p));
+
+        return $wrapper->render();
+    }
+
+    /**
+     * renders thumbnails for an image page inside an InputfieldMarkup
+     *
+     * @param Page $page
+     * @return InputfieldMarkup inputfield markup instance
+     */
+    public function renderThumbnailsForPage($page)
+    {
+        $markupField = $this->wire('modules')->get('InputfieldMarkup');
+        $markupField->attr('data-pageid', $page->id);
+        $markupField->label = $this->_('Choose an image from') . ' ' . $page->title;
+        $markupField->value = $this->getThumbnailsForPage($page->id);
+        $markupField->collapsed(1); // collapse when Icon already chosen
+
+        return $markupField;
+    }
+
+    /**
+     * renders thumbnails markupfor an image page
+     *
+     * @param int $page
+     * @return string thumbnail markup for page images
+     */
+    public function getThumbnailsForPage($pageid)
+    {
+        $page = $this->wire('pages')->get($pageid);
+        $images = $page->get($this->imagesfield);
+        // bd($images->getAllVariations());
+        if (!$images->count) {
+            $markup = '<b>' . $this->_('There are no images. Upload images to page') . ' ' . $page->title . '</b>';
+        } else {
+            $thumbWidth = ($this->thumbWidth) ? $this->thumbWidth : 100;
+            $markup = '<ul class="uk-thumbnav uk-grid-width-1-6">';
+            foreach ($images as $img) {
+                $tooltip = $this->renderTooltip($img);
+                $markup .= "<li class='uk-thumbnail uk-thumbnail-mini'>
+                <img style='max-width: {$thumbWidth}px; width: {$thumbWidth}px' data-pageid='{$page->id}' data-filename='{$img->basename}' src='{$img->width($thumbWidth)->url}' alt='{$img->basename}'  uk-tooltip='{$tooltip}'>
+                </li>";
+            }
+            $markup .= '</ul>';
+        }
+
+        return $markup;
+    }
+
+    public function renderTooltip(Pageimage $img)
+    {
+        $out = $img->basename;
+        if ($img->description) $out .= '<br>' . $img->description;
+        $out .= '<br>' . $img->filesizeStr;
+        if (strtolower($img->ext) !== 'svg') $out .= '<br>' . "{$img->width} x {$img->height} px";
+
+        return $out;
+    }
+
+    /**
+     * Process the input after a form submission
+     * 
+     * @param WireInputData $input
+     * @return $this
+     *
+     */
+    public function ___processInput(WireInputData $input)
+    {
+
+        $name = $this->attr('name');
+        $imagefrompage = $this->attr('value');
+        $filename = "_{$name}_filename";
+        $pageid = "_{$name}_pageid";
+
+        if (!isset($input->$filename) && !isset($input->$pageid)) return $this;
+
+        $imagefrompage->set('filename', $this->wire('sanitizer')->filename($input->$filename));
+        $imagefrompage->set('pageid', (int) $input->$pageid);
+
+        return $this;
+    }
+}

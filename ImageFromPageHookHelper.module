@@ -1,0 +1,83 @@
+<?php
+
+namespace ProcessWire;
+
+class ImageFromPageHookHelper extends WireData implements Module
+{
+    /**
+     * Return an array of module information
+     *
+     * @return array
+     */
+    public static function getModuleInfo()
+    {
+        return array(
+            'title' => 'Hook Helper Module for FieldtypeImageFromPage',
+            'version' => 001,
+            'summary' => __('Adds hooks to Pagefiles to cleanup stored data from FieldtypeImageFromPage.'),
+            'author' => 'Gerhard Sitzmann',
+            'href' => '',
+            'autoload' => true,
+            'requires' => array(
+                'FieldtypeImageFromPage',
+                'PHP>=7.1.0',
+                'ProcessWire>=3.0.120'
+            )
+        );
+    }
+
+    public function init()
+    { 
+
+        $this->addHookAfter('Pagefiles::delete', $this, 'cleanupFieldtypeImageFromPageData');
+    }
+    
+    /**
+     * Executes when an image gets deleted that lives on a page which holds images for FieldtypeImageFromPage
+     *
+     * @param Hookevent $event
+     * @return void
+     */
+    public function cleanupFieldtypeImageFromPageData(Hookevent $event)
+    {
+        $imagePageIds = $this->getImagePageIds();
+        // bd($imagePageIds);
+        $deleted = $event->arguments(0);
+        bd($deleted);
+        $pageid = $deleted->page->id;
+        if(!in_array($pageid, $imagePageIds)) return;
+        $filename = $deleted->basename;
+
+        $fieldnames = array();
+        foreach($this->wire('fields') as $f) {
+            if($f->type instanceof FieldtypeImageFromPage) $fieldnames[] = $f->name;
+        }
+        foreach($fieldnames as $name) {
+            $pages = $this->wire('pages')->find("{$name}.filename={$filename}, {$name}.pageid={$pageid}");
+            foreach($pages as $p) {
+                $p->of(false);
+                $p->set($name, new ImageFromPage);
+                $p->save();
+                $this->warning("Removed reference for file {$filename} from field {$name} on <a href='{$p->editUrl}' title='Edit page' target='_blank'>page {$p->title}</a>. You might want to reference another image there.", Notice::allowMarkup);
+            }
+        }
+
+    }
+
+    /**
+     * Collects IDs of all pages and their children that hold images for fields of type FieldtypeImageFromPage
+     *
+     * @return array
+     */
+    public function getImagePageIds() {
+        $ids = array();
+        foreach($this->wire('fields') as $f) {
+            if($f->type instanceof FieldtypeImageFromPage) $ids[] = $f->imagespage;
+        }
+        foreach($this->wire('pages')->find($ids, array('include' => 'hidden')) as $p) {
+            $children = $p->children('include=all');
+            if($children && $children->count) $ids = array_merge($ids, $children->explode('id'));
+        }
+        return $ids;
+    }
+}

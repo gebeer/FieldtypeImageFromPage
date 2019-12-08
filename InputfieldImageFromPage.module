@@ -96,7 +96,8 @@ class InputfieldImageFromPage extends Inputfield implements Module
         $id = $this->attr('id');
         $name = $this->attr('name');
         $value = $this->attr('value');
-        if($value->pageid == 0) {
+        bd($value->pageid && $value->pageid === 0);
+        if($value->pageid === -1) {
             $message = $this->_("The referenced image was deleted. Choose a new image");
             $this->page->error($this->_("The referenced image was deleted. Choose a new image"));
             $this->error($message);

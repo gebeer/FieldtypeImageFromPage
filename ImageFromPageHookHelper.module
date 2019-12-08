@@ -43,7 +43,6 @@ class ImageFromPageHookHelper extends WireData implements Module
         $imagePageIds = $this->getImagePageIds();
         // bd($imagePageIds);
         $deleted = $event->arguments(0);
-        bd($deleted);
         $pageid = $deleted->page->id;
         if(!in_array($pageid, $imagePageIds)) return;
         $filename = $deleted->basename;
@@ -55,8 +54,10 @@ class ImageFromPageHookHelper extends WireData implements Module
         foreach($fieldnames as $name) {
             $pages = $this->wire('pages')->find("{$name}.filename={$filename}, {$name}.pageid={$pageid}");
             foreach($pages as $p) {
+                $value = new ImageFromPage;
+                $value->pageid = -1;
                 $p->of(false);
-                $p->set($name, new ImageFromPage);
+                $p->set($name, $value);
                 $p->save();
                 $this->warning("Removed reference for file {$filename} from field {$name} on <a href='{$p->editUrl}' title='Edit page' target='_blank'>page {$p->title}</a>. You might want to reference another image there.", Notice::allowMarkup);
             }

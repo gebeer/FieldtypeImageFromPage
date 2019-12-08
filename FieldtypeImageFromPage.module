@@ -30,7 +30,7 @@ class FieldtypeImageFromPage extends Fieldtype
     {
         return array(
             'title' => __('Image Reference From Another Page'),
-            'version' => 001,
+            'version' => 002,
             'summary' => __('Fieldtype that stores a reference to a single image from another page'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',
@@ -225,6 +225,7 @@ class FieldtypeImageFromPage extends Fieldtype
         $inputfield->set('thumbWidth', $field->thumbWidth);
         $inputfield->set('imagespage', $field->imagespage);
         $inputfield->set('imagesfield', $field->imagesfield);
+        $inputfield->set('includechildren', $field->includechildren);
         return $inputfield;
     }
 
@@ -378,19 +379,24 @@ class FieldtypeImageFromPage extends Fieldtype
             $inputfields->add($f);
         }
 
+        $f = $this->modules->get('InputfieldCheckbox');
+        $f->attr('name', 'includechildren');
+        $f->label = $this->_("Include child pages of above page as source for images?");
+        $f->description = $this->_('If checked, all child pages of above page will serve images to the inputfield');
+        $f->attr('value', $field->includechildren);
+        $inputfields->add($f);
+
         $f = $this->modules->get('InputfieldText');
         $f->attr('name', 'previewWidth');
         $f->label = $this->_("Width of the selected image in px");
-        $f->description = $this->_('Sets the width of the selected image inside the inputfield');
-        $f->notice = $this->_('default is 200px');
+        $f->description = $this->_('Sets the width of the selected image inside the inputfield, defaults to 200px');
         $f->attr('value', $field->previewWidth);
         $inputfields->add($f);
 
         $f = $this->modules->get('InputfieldText');
         $f->attr('name', 'thumbWidth');
         $f->label = $this->_("Width of thumbnail images in px");
-        $f->description = $this->_('Sets the width of the thumbnail images inside the inputfield');
-        $f->notice = $this->_('default is 100px');
+        $f->description = $this->_('Sets the width of the thumbnail images inside the inputfield, defaults to 100px');
         $f->attr('value', $field->thumbWidth);
         $inputfields->add($f);
 

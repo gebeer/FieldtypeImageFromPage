@@ -13,7 +13,7 @@ class ImageFromPageHookHelper extends WireData implements Module
     {
         return array(
             'title' => 'Hook Helper Module for FieldtypeImageFromPage',
-            'version' => 001,
+            'version' => 002,
             'summary' => __('Adds hooks to Pagefiles to cleanup stored data from FieldtypeImageFromPage.'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',

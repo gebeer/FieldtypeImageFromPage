@@ -36,7 +36,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         return array(
             'title' => 'Select Image From Page',
-            'version' => 001,
+            'version' => 002,
             'summary' => __('Inputfield to select a single image from images on a predefined page and it\'s children.'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',
@@ -55,10 +55,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function populateValues()
     {
-        // set properties from field settings
-        // foreach ($this->hasField->data as $key => $value) $this->set($key, $value);
-        $imagePage = $this->wire('pages')->find($this->imagespage, array('include' => 'hidden'));
-        $this->imagePages = $imagePage->add($imagePage->first()->children('include=hidden'));
+        $this->imagePages = $this->getImagePages();
     }
 
     /**
@@ -201,6 +198,21 @@ class InputfieldImageFromPage extends Inputfield implements Module
         if (strtolower($img->ext) !== 'svg') $out .= '<br>' . "{$img->width} x {$img->height} px";
 
         return $out;
+    }
+
+    /**
+     * gets all pages that serve image thumbnails to the inputfield
+     *
+     * @return Pages
+     */
+    public function getImagePages() {
+        $pages = $this->wire('pages')->find($this->imagespage, array('include' => 'hidden'));
+        if($this->includechildren) {
+            foreach($pages->first()->children('include=hidden') as $child) {
+                if($child->hasField($this->imagesfield)) $pages->add($child);
+            }
+        } 
+        return $pages;
     }
 
     /**

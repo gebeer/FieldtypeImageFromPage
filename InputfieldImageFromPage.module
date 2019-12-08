@@ -36,7 +36,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         return array(
             'title' => 'Select Image From Page',
-            'version' => 002,
+            'version' => 003,
             'summary' => __('Inputfield to select a single image from images on a predefined page and it\'s children.'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',
@@ -96,7 +96,6 @@ class InputfieldImageFromPage extends Inputfield implements Module
         $id = $this->attr('id');
         $name = $this->attr('name');
         $value = $this->attr('value');
-        bd($value->pageid && $value->pageid === 0);
         if($value->pageid === -1) {
             $message = $this->_("The referenced image was deleted. Choose a new image");
             $this->page->error($this->_("The referenced image was deleted. Choose a new image"));

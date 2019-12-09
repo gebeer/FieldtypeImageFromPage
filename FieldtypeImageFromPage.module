@@ -349,7 +349,7 @@ class FieldtypeImageFromPage extends Fieldtype
 
         $f = $this->modules->get('InputfieldPageListSelect');
         $f->attr('name', 'imagespage');
-        $f->parent_id = 1;
+        $f->parent_id = 0; // 0 to include homepage
         $f->label = $this->_("Choose a page to get images from");
         $f->description = $this->_("This page and it's child pages will be used to supply images");
         $f->attr('value', $field->imagespage);
@@ -383,6 +383,8 @@ class FieldtypeImageFromPage extends Fieldtype
         $f->attr('name', 'includechildren');
         $f->label = $this->_("Include child pages of above page as source for images?");
         $f->description = $this->_('If checked, all child pages of above page will serve images to the inputfield');
+        bd($field->includechildren);
+        $f->attr('checked', $field->includechildren ? 'checked' : '');
         $f->attr('value', $field->includechildren);
         $inputfields->add($f);
 

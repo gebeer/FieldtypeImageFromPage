@@ -27,5 +27,5 @@
 	padding: 10px;
 	font-size: .75rem;
     margin-top: 1rem;
-    hyphens: auto;
+    word-wrap: break-word;
 }

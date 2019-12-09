@@ -11,6 +11,7 @@
 * The page containing the images to choose from.
     - images from that page and it's child pages will be used as site-wide images.
 * The field name of the images field on that page
+* option to include images from child pages of the page that contains images
 * Width of chosen image in Inputfield
 * Width of image thumbnails in Inputfield 
 
@@ -28,26 +29,28 @@ Other than the native ProcessWire images field, the images here are not stored p
 
 ### Features
 
-* images can be manipulated like native ProcessWire images (resizing, cropping etc.)
-* image names are fully searchable through the API
+* Images can be organized into categories. Child pages of the main 'image holder page' serve as categories
+* Images can be manipulated like native ProcessWire images (resizing, cropping etc.)
+* Image names are fully searchable through the API
 ```php
 $pages->find('fieldname.filename=xyz.png');
 $pages->find('fieldname.filename%=xy.png');
 ```
-* orphaned references to images that get deleted are automatically removed. When you delete an image from one of the pages that hold your site-wide images, all pages that use this fieldtype will be searched. If any page contains a reference to the image you just deleted, that reference will be reset. You will get warning messages to edit those pages and add new image references there.
+* Accidental image deletion is prevented. When you want to delete an image from one of the pages that hold your site-wide images, the module searches all pages that use that image. If any page contains a reference to the image you are trying to delete, deletion will be prevented. You will get an error message to help you edit those pages and remove references there before you can finally delete the image.
 
 
 ### How to install and setup
 1. Download and install this module like any other modules in ProcessWire
-2. Create a page in the page tree that will hold your images. This page's template must have an images field
+2. Create a page in the page tree that will hold your images and supply them to the inputfield. This page's template must have an images field
 3. Upload some images to the page you created in step 2
 4. Create a new field. As type choose 'Image Reference From Another Page'. Save the field.
 5. In 'Details' Tab of the field choose the page you created in step 2
 6. Click Save button
 7. Choose the images field name for the field that holds your images (on page template from step 2)
 8. Click Save button again
-9. Add the field to any template
-10. You are now ready to use the field
+9. Choose whether you want to include child pages of page from step 2 to supply images
+10. Add the field to any template
+11. You are now ready to use the field
 
 ### How to use in template files
 
@@ -58,9 +61,11 @@ $pages->find('fieldname.filename%=xy.png');
 $thumb = $page->fieldname->width(100);
 // render the text content for inlining SVG (works only with SVG images)
 $page->fieldname->svgcontent
-// search for image by name
+// search for image by file name
 $pages->find('fieldname.filename=xyz.png');
 ```
+
+[ProcessWire forum thread](https://processwire.com/talk/topic/22732-fieldtypeimagefrompage-pick-an-image-from-predefined-pages/)
 
 ### Credits
 This module was developed based on ideas from forum members in [this forum thread](https://processwire.com/talk/topic/22665-module-fieldtypeimagepicker-pick-images-from-a-folder/)

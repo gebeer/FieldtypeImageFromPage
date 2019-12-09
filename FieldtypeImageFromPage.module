@@ -105,20 +105,19 @@ class FieldtypeImageFromPage extends Fieldtype
      * @param Page $page
      * @param Field $field
      * @param ImageFromPage $value
-     * @return Pageimage
+     * @return mixed Pageimage|null
      *    
      */
     public function ___formatValue(Page $page, Field $field, $value)
     {
-        // if ($field->outputFormat === 7) return $this->sleepValue($page, $field, $value);
         if($value->filename && $value->pageid != 0) {
             $pageimage = $this->wire('pages')->get($value->pageid)->get($field->imagesfield)->getFile($value->filename);
             if ($pageimage && $pageimage instanceof Pageimage) {
                 $this->addHookProperty("Pageimage::svgcontent", $this, 'addPropertySvgcontent');
                 return $pageimage;
             }
-        }
-        throw new WireException("The referenced image does not exist");
+        } 
+        return null;
     }
 
 

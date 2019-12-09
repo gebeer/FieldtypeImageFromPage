@@ -29,56 +29,88 @@ class ImageFromPageHookHelper extends WireData implements Module
     public function init()
     { 
 
-        $this->addHookAfter('Pagefiles::delete', $this, 'cleanupFieldtypeImageFromPageData');
+        $this->addHookBefore('Pagefiles::delete', $this, 'cleanupFieldtypeImageFromPageData');
     }
     
     /**
-     * Executes when an image gets deleted that lives on a page which holds images for FieldtypeImageFromPage
+     * Executes before an image gets deleted that lives on a page which holds images for FieldtypeImageFromPage
+     * If references to that image are found on other pages, deletion is prevented and error messages are shown.
      *
      * @param Hookevent $event
      * @return void
      */
     public function cleanupFieldtypeImageFromPageData(Hookevent $event)
     {
-        $imagePageIds = $this->getImagePageIds();
-        // bd($imagePageIds);
+        $thisFieldname = $event->object->field;
+        // get fields of type imagefrompage that have this imagesfield assigned
+        $fields = $this->getRelevantFields($thisFieldname);
+        $imagePageIds = $this->getImagePageIds($fields);
         $deleted = $event->arguments(0);
         $pageid = $deleted->page->id;
         if(!in_array($pageid, $imagePageIds)) return;
         $filename = $deleted->basename;
-
-        $fieldnames = array();
-        foreach($this->wire('fields') as $f) {
-            if($f->type instanceof FieldtypeImageFromPage) $fieldnames[] = $f->name;
-        }
+        $fieldnames = array_map(function($f) {
+            return $f->name;
+        }, $fields);
+        $pagelist = '';
         foreach($fieldnames as $name) {
-            $pages = $this->wire('pages')->find("{$name}.filename={$filename}, {$name}.pageid={$pageid}");
-            foreach($pages as $p) {
-                $value = new ImageFromPage;
-                $value->pageid = -1;
-                $p->of(false);
-                $p->set($name, $value);
-                $p->save();
-                $this->warning("Removed reference for file {$filename} from field {$name} on <a href='{$p->editUrl}' title='Edit page' target='_blank'>page {$p->title}</a>. You might want to reference another image there.", Notice::allowMarkup);
-            }
+            $pages = $this->wire('pages')->find("{$name}.filename={$filename}, {$name}.pageid={$pageid}, include=all");
+            if($pages->count) {
+                $label = $pages->first()->getField($name)->label;
+                $pagelist .= "References to remove in field: <em>{$label}</em><br>";
+                $pagelist .= '<ul>';
+                foreach($pages as $p) {
+                    $pagelist .= "<li>Page title: <em>{$p->title}</em>, Page path: <em>{$p->path}</em> &nbsp;<a href='{$p->editUrl}&field={$name}' title='Edit page in new tab' target='_blank'><strong>Edit page</strong></a></li>";
+                }
+                $pagelist .= '</ul>';
+            } 
         }
-
+        if($pagelist) {
+            $message = sprintf(
+                $this->_('You cannot delete image %s as it is being used on other pages. Remove the references on those pages.')
+                , "<em>{$filename}</em>"
+            ) . '<br>';
+            $message .= "{$pagelist}<br>";
+            $message .= 'After all references are removed, you may delete this image';
+            $event->object->error($message, Notice::allowMarkup);
+            $event->replace = true; // prevents deletion
+        }
     }
 
     /**
-     * Collects IDs of all pages and their children that hold images for fields of type FieldtypeImageFromPage
+     * Collects IDs of all pages and their children that  hold images for fields of type FieldtypeImageFromPage
      *
-     * @return array
+     * @param array $fields all relevant fields of type FieldtypeImageFromPage
+     * @return array array of page ids
      */
-    public function getImagePageIds() {
+    public function getImagePageIds($fields) {
         $ids = array();
+        foreach($fields as $f) {
+            $ids[] = $f->imagespage;
+        }
+        $pages = $this->wire('pages')->find($ids, array('include' => 'hidden'));
+        foreach($fields as $field) {
+            if($field->includechildren) {
+                foreach($pages as $p) {
+                    $pages->add($p->children('include=all'));
+                }
+            }
+        }
+
+        return $pages->explode('id');
+    }
+
+    /**
+     * get names of imagefrompage fields that have an imagesfield with name $imagesfield assigned
+     *
+     * @param string $imagesfield name of the imagesfield
+     * @return array array of fields of type FieldtypeImageFromPage
+     */
+    public function getRelevantFields($imagesfield) {
+        $fields = array();
         foreach($this->wire('fields') as $f) {
-            if($f->type instanceof FieldtypeImageFromPage) $ids[] = $f->imagespage;
+            if($f->type instanceof FieldtypeImageFromPage && $f->imagesfield == $imagesfield) $fields[] = $f;
         }
-        foreach($this->wire('pages')->find($ids, array('include' => 'hidden')) as $p) {
-            $children = $p->children('include=all');
-            if($children && $children->count) $ids = array_merge($ids, $children->explode('id'));
-        }
-        return $ids;
+        return $fields;
     }
 }

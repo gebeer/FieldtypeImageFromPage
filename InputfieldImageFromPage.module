@@ -183,7 +183,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
         $markup .= '</ul>';
         $markupField = new InputfieldMarkup; // $this->wire('modules')->get('InputfieldMarkup');
         $markupField->class('imagefrompage_thumbholder');
-        $markupField->setAttribute('data-pageid', $page->id);
+        // $markupField->attr('data-pageid', $page->id); // does not work
         $markupField->label = $this->_('Choose an image from') . ' ' . $page->title;
         $markupField->entityEncodeLabel = false;
         $markupField->markupText = $button . $markup;

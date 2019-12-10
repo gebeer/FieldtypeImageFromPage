@@ -59,6 +59,20 @@ class InputfieldImageFromPage extends Inputfield implements Module
     }
 
     /**
+     * populates config JS
+     *
+     * @return void
+     */
+    public function populateConfigJs()
+    {
+        $input = $this->wire('input');
+        $editPageUrl = $this->wire('pages')->get($input->id)->editUrl;
+        $this->wire('config')->js($this->className, array(
+			'url' => $editPageUrl . "&InputfieldImageFromPage=1"
+		));
+    }
+
+    /**
      * Set an attribute to this Inputfield
      *
      * In this case, we just capture the 'value' attribute and make sure it's something valid
@@ -93,6 +107,14 @@ class InputfieldImageFromPage extends Inputfield implements Module
     public function ___render()
     {
         $this->populateValues();
+        $this->populateConfigJs();
+        $input = $this->wire('input');
+
+        if($input->InputfieldImageFromPage && $input->pageid) {
+            echo $this->getThumbnailsForPage($input->pageid);
+            exit;
+        }
+
         $id = $this->attr('id');
         $name = $this->attr('name');
         $value = $this->attr('value');
@@ -101,11 +123,9 @@ class InputfieldImageFromPage extends Inputfield implements Module
             $this->page->error($this->_("The referenced image was deleted. Choose a new image"));
             $this->error($message);
         }
-        $out = "<p>";
-        $out .= $this->renderSelectedImage($value);
+        $out = $this->renderSelectedImage($value);
         $out .= $this->renderInputs($name, $value);
         $out .= $this->renderThumbnails();
-        $out .= "</p>";
 
         return $out;
     }
@@ -153,10 +173,14 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function renderThumbnailsForPage($page)
     {
-        $markupField = $this->wire('modules')->get('InputfieldMarkup');
-        $markupField->attr('data-pageid', $page->id);
+        $markup = '<ul class="uk-thumbnav uk-grid-width-1-6" data-pageid="' . $page->id . '">';
+        if($this->useajax) $markup .= $this->getThumbnailsForPage($page->id);
+        $markup .= '</ul>';
+        $markupField = new InputfieldMarkup; // $this->wire('modules')->get('InputfieldMarkup');
+        $markupField->class('imagefrompage_thumbholder');
+        $markupField->wrapAttr('data-pageid', $page->id);
         $markupField->label = $this->_('Choose an image from') . ' ' . $page->title;
-        $markupField->value = $this->getThumbnailsForPage($page->id);
+        $markupField->markupText = $markup;
         $markupField->collapsed(1); // collapse when Icon already chosen
 
         return $markupField;
@@ -177,14 +201,15 @@ class InputfieldImageFromPage extends Inputfield implements Module
             $markup = '<b>' . $this->_('There are no images. Upload images to page') . ' ' . $page->title . '</b>';
         } else {
             $thumbWidth = ($this->thumbWidth) ? $this->thumbWidth : 100;
-            $markup = '<ul class="uk-thumbnav uk-grid-width-1-6">';
+            // $markup = '<ul class="uk-thumbnav uk-grid-width-1-6">';
+            $markup = '';
             foreach ($images as $img) {
                 $tooltip = $this->renderTooltip($img);
                 $markup .= "<li class='uk-thumbnail uk-thumbnail-mini'>
                 <img style='max-width: {$thumbWidth}px; width: {$thumbWidth}px' data-pageid='{$page->id}' data-filename='{$img->basename}' src='{$img->width($thumbWidth)->url}' alt='{$img->basename}'  uk-tooltip='{$tooltip}'>
                 </li>";
             }
-            $markup .= '</ul>';
+            // $markup .= '</ul>';
         }
 
         return $markup;

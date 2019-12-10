@@ -29,3 +29,13 @@
     margin-top: 1rem;
     word-wrap: break-word;
 }
+
+.InputfieldImageFromPage .InputfieldMarkup  .InputfieldContent {
+    position: relative;
+}
+
+.InputfieldImageFromPage .InputfieldMarkup  .InputfieldContent .imagefrompage_editimages {
+    position: absolute;
+    right: 50px;
+    top: -40px;
+}

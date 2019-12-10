@@ -10,10 +10,11 @@
 
 * The page containing the images to choose from.
     - images from that page and it's child pages will be used as site-wide images.
-* The field name of the images field on that page
-* option to include images from child pages of the page that contains images
-* Width of chosen image in Inputfield
-* Width of image thumbnails in Inputfield 
+* The field name of the images field on that page.
+* Option to include images from child pages of the page that contains images
+* Option to load thumbnails on demand via ajax. Especially useful when field is used inside repeaters or has many images
+* Width of chosen image in Inputfield.
+* Width of image thumbnails in Inputfield.
 
 ![Inputfield Settings](images/field-settings.png)
 
@@ -37,6 +38,7 @@ $pages->find('fieldname.filename=xyz.png');
 $pages->find('fieldname.filename%=xy.png');
 ```
 * Accidental image deletion is prevented. When you want to delete an image from one of the pages that hold your site-wide images, the module searches all pages that use that image. If any page contains a reference to the image you are trying to delete, deletion will be prevented. You will get an error message to help you edit those pages and remove references there before you can finally delete the image.
+* Image thumbnails loaded into inputfield on demand
 
 
 ### How to install and setup

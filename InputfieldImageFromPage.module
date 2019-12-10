@@ -160,7 +160,9 @@ class InputfieldImageFromPage extends Inputfield implements Module
     public function renderThumbnails()
     {
         $wrapper = new InputfieldWrapper;
-        foreach ($this->imagePages as $p) $wrapper->add($this->renderThumbnailsForPage($p));
+        foreach ($this->imagePages as $p) {
+           $wrapper->add($this->renderThumbnailsForPage($p));
+        }
 
         return $wrapper->render();
     }
@@ -173,14 +175,18 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function renderThumbnailsForPage($page)
     {
+        $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Edit Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span uk-icon='icon: pencil'></span></a>";
+        
+
         $markup = '<ul class="uk-thumbnav uk-grid-width-1-6" data-pageid="' . $page->id . '">';
         if($this->useajax) $markup .= $this->getThumbnailsForPage($page->id);
         $markup .= '</ul>';
         $markupField = new InputfieldMarkup; // $this->wire('modules')->get('InputfieldMarkup');
         $markupField->class('imagefrompage_thumbholder');
-        $markupField->wrapAttr('data-pageid', $page->id);
+        $markupField->setAttribute('data-pageid', $page->id);
         $markupField->label = $this->_('Choose an image from') . ' ' . $page->title;
-        $markupField->markupText = $markup;
+        $markupField->entityEncodeLabel = false;
+        $markupField->markupText = $button . $markup;
         $markupField->collapsed(1); // collapse when Icon already chosen
 
         return $markupField;

@@ -78,11 +78,22 @@ class FieldtypeImageFromPage extends Fieldtype
      */
     public function sanitizeValue(Page $page, Field $field, $value)
     {
-        // if it's not a MapMarker, then just return a blank ImageFromPage
-        if (!$value instanceof ImageFromPage) $value = $this->getBlankValue($page, $field);
+        bd($value, 'sanitize');
+        // if it's not a ImageFromPage, then return a ImageFromPage
+        if (!$value instanceof ImageFromPage) {
+            if($obj = json_decode($value) instanceof \stdClass) {
+                $imagefrompage = $this->getBlankValue($page, $field);
+                $imagefrompage->set('pageid', $obj->pageid);
+                $imagefrompage->set('filename', $obj->filename);
+            } else {
+                $value = $this->getBlankValue($page, $field);
+            }
+        }
+        // if (!$value instanceof ImageFromPage) {
+        // }
 
         // if the filename changed, tell the $page that this field changed
-        if ($value->isChanged('filename')) $page->trackChange($field->name);
+        if ($value->isChanged('filename') || $value->isChanged('pageid')) $page->trackChange($field->name);
 
         return $value;
     }
@@ -131,12 +142,14 @@ class FieldtypeImageFromPage extends Fieldtype
      */
     public function ___wakeupValue(Page $page, Field $field, $value)
     {
-        // get a blank MapMarker instance
+        bd($value, 'wakeup');
+        // get a blank ImageFromPage instance
         $imagefrompage = $this->getBlankValue($page, $field);
 
         // populate the image
         $imagefrompage->filename = $value['data'];
         $imagefrompage->pageid = $value['pageid'];
+        $imagefrompage->value = $this->wire('modules')->get('ImageFromPage')->__toString();
         $imagefrompage->setTrackChanges(true);
 
         return $imagefrompage;
@@ -153,10 +166,20 @@ class FieldtypeImageFromPage extends Fieldtype
     public function ___sleepValue(Page $page, Field $field, $value)
     {
 
-        $imagefrompage = $value;
+        bd($value, 'sleep');
+        if (!$value instanceof ImageFromPage) {
+            if($obj = json_decode($value) instanceof \stdClass) {
+                $imagefrompage = $this->getBlankValue($page, $field);
+                $imagefrompage->set('pageid', $obj->pageid);
+                $imagefrompage->set('filename', $obj->filename);
+            } else {
+                throw new WireException("Expecting an instance of ImageFromPage");
+            }
 
-        if (!$imagefrompage instanceof ImageFromPage)
-            throw new WireException("Expecting an instance of ImageFromPage");
+        } else {
+            $imagefrompage = $value;
+        }
+
 
         $sleepValue = array(
             'data' => $imagefrompage->filename,
@@ -397,7 +420,7 @@ class FieldtypeImageFromPage extends Fieldtype
         $f = $this->modules->get('InputfieldText');
         $f->attr('name', 'thumbWidth');
         $f->label = $this->_("Width of thumbnail images in px");
-        $f->description = $this->_('Sets the width of the thumbnail images inside the inputfield, defaults to 100px');
+        $f->description = $this->_('Sets the width of the thumbnail images inside the input field, defaults to 100px');
         $f->attr('value', $field->thumbWidth);
         $inputfields->add($f);
 

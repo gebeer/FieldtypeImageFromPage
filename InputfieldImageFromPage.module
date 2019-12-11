@@ -66,9 +66,13 @@ class InputfieldImageFromPage extends Inputfield implements Module
     public function populateConfigJs()
     {
         $input = $this->wire('input');
-        $editPageUrl = $this->wire('pages')->get($input->id)->editUrl;
+        if($this->process == 'ProcessPageEdit') { // we are on a page edit screen
+            $editPageUrl = $this->wire('pages')->get($input->id)->editUrl . "&InputfieldImageFromPage=1";
+        } else { // other page 
+            $editPageUrl = $this->page->url . "?InputfieldImageFromPage=1";
+        }
         $this->wire('config')->js($this->className, array(
-			'url' => $editPageUrl . "&InputfieldImageFromPage=1"
+			'url' => $editPageUrl
 		));
     }
 
@@ -85,7 +89,18 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function setAttribute($key, $value)
     {
+        if ($key == 'value' && !$value instanceof ImageFromPage) {
+            if(is_array($value) && isset($value['pageid']) && isset($value['filename'])){
+                $tmp = new ImageFromPage;
+                $tmp->set('pageid', $value['pageid']);
+                $tmp->set('filename', $value['filename']);
+                $value = $tmp;
+                unset($tmp);
+            } elseif (!$value) {
+                $value = new ImageFromPage;
+            }
 
+        }
         if ($key == 'value' && !$value instanceof ImageFromPage && !is_null($value)) {
             throw new WireException("This input only accepts a ImageFromPage for it's value");
         }
@@ -151,9 +166,11 @@ class InputfieldImageFromPage extends Inputfield implements Module
 
     public function renderInputs($name, $value)
     {
+        $jsonValue = '{"pageid": ' . $value->pageid . ', "filename": "' . $value->filename . '"}';
         return "<div>
         <input type='hidden' class='imagefrompage_filename' name='_{$name}_filename' id='_{$name}_filename' value='{$value->filename}' \>
         <input type='hidden' class='imagefrompage_pageid' name='_{$name}_pageid' id='_{$name}_pageid' value='{$value->pageid}' \>
+        <input type='hidden' class='imagefrompage_value' name='{$name}' id='{$name}' value='{$jsonValue}' \>
         </div>";
     }
 
@@ -175,7 +192,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function renderThumbnailsForPage($page)
     {
-        $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Upload Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span uk-icon='icon: upload'></span></a>";
+        $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Upload Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span class='fa fa-upload'></span></a>";
         
 
         $markup = '<ul class="uk-thumbnav uk-grid-width-1-6" data-pageid="' . $page->id . '">';
@@ -254,8 +271,9 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function ___processInput(WireInputData $input)
     {
-
+        // bd($input);
         $name = $this->attr('name');
+        bd($this->attr('value'));  
         $imagefrompage = $this->attr('value');
         $filename = "_{$name}_filename";
         $pageid = "_{$name}_pageid";
@@ -264,6 +282,8 @@ class InputfieldImageFromPage extends Inputfield implements Module
 
         $imagefrompage->set('filename', $this->wire('sanitizer')->filename($input->$filename));
         $imagefrompage->set('pageid', (int) $input->$pageid);
+        $imagefrompage->set('filename', $this->wire('sanitizer')->filename($input->$filename));
+        $imagefrompage->set('value', $this->__toString());
 
         return $this;
     }

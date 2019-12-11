@@ -6,7 +6,8 @@ class ImageFromPage extends WireData
 {
 	public function __construct() {
 		$this->set('filename', ''); 
-		$this->set('pageid', 0); 
+        $this->set('pageid', 0); 
+        $this->set('value', $this->__toString());
 	}
 
     public function set($key, $value)
@@ -15,6 +16,8 @@ class ImageFromPage extends WireData
             $value = wire('sanitizer')->filename($value);
         } else if ($key == 'pageid') {
             $value = (int) $value;
+        } else if ($key == 'value') {
+            $value = wire('sanitizer')->text($value);
         }
         return parent::set($key, $value);
     }

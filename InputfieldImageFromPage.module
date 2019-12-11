@@ -175,7 +175,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function renderThumbnailsForPage($page)
     {
-        $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Edit Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span uk-icon='icon: pencil'></span></a>";
+        $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Upload Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span uk-icon='icon: upload'></span></a>";
         
 
         $markup = '<ul class="uk-thumbnav uk-grid-width-1-6" data-pageid="' . $page->id . '">';
@@ -202,7 +202,6 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         $page = $this->wire('pages')->get($pageid);
         $images = $page->get($this->imagesfield);
-        // bd($images->getAllVariations());
         if (!$images->count) {
             $markup = '<b>' . $this->_('There are no images. Upload images to page') . ' ' . $page->title . '</b>';
         } else {

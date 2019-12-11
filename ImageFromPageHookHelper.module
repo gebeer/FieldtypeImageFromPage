@@ -72,7 +72,6 @@ class ImageFromPageHookHelper extends WireData implements Module
                         $urlParam = "&field={$repeaterfieldName}";
                     }
                     $p = $this->getPageToEdit($p);
-                    // bd($p->template->name);
                     $pagelist .= "<li>Page title: <em>{$p->title}</em>, Page path: <em>{$p->path}</em> &nbsp;<a href='{$p->editUrl}{$urlParam}' title='Edit page in new tab' target='_blank'><strong>Edit page</strong></a></li>";
                 }
                 $pagelist .= '</ul>';

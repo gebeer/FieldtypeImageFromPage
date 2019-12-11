@@ -404,8 +404,7 @@ class FieldtypeImageFromPage extends Fieldtype
         $f = $this->modules->get('InputfieldCheckbox');
         $f->attr('name', 'useajax');
         $f->label = $this->_("Load thumbnails dynamically only when requested");
-        $f->description = $this->_('If checked, the thumbnail images will be loaded on demand. Especially useful if this field is used inside repeaters');
-        bd($field->useajax);
+        $f->description = $this->_('If checked, the thumbnail images will be loaded on demand. Especially useful when field is used inside repeaters or has many images');
         $f->attr('checked', $field->useajax ? 'checked' : '');
         $f->attr('value', $field->useajax);
         $inputfields->add($f);

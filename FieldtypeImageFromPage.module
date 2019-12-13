@@ -276,7 +276,6 @@ class FieldtypeImageFromPage extends Fieldtype
 
         $requiredVersion = 2;
         $schemaVersion = (int) $field->get('schemaVersion');
-        bd($schemaVersion);
         if ($schemaVersion >= $requiredVersion) {
             // already up-to-date
             return;
@@ -296,7 +295,6 @@ class FieldtypeImageFromPage extends Fieldtype
             $query->execute();
             $row = $query->fetch(\PDO::FETCH_NUM);
             $query->closeCursor();
-            bd($row);
             if (!empty($row)) {
                 $query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE field='filename'");
                 $query->execute();
@@ -310,7 +308,7 @@ class FieldtypeImageFromPage extends Fieldtype
                     // $database->exec("ALTER TABLE `$table` DROP DEFAULT");
                     $database->exec("ALTER TABLE `$table` MODIFY data JSON NOT NULL");
                     $this->message("updated 'data' schema to JSON NOT NULL");
-                    $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\": ', `$table`.pageid, ',\"filename\" :\"', `$table`.filename, '\"}')");
+                    // $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\": ', `$table`.pageid, ',\"filename\" :\"', `$table`.filename, '\"}')");
                     // $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
                     $this->message("updated 'data' column with json string");
                 } catch (\Exception $e) {

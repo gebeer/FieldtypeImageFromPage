@@ -299,18 +299,17 @@ class FieldtypeImageFromPage extends Fieldtype
                 $query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE field='filename'");
                 $query->execute();
                 if (!$query->rowCount()) try {
-                    $database->exec("ALTER TABLE `$table` ADD `filename` $schema[filename] AFTER pageid");
+                    $database->exec("ALTER TABLE `$table` ADD COLUMN `filename` VARCHAR(255) NOT NULL AFTER pageid");
+                    $database->exec("ALTER TABLE `$table` ADD FULLTEXT(`filename`)");
                     $this->message("Added 'filename' column to '$field->table'");
                     $database->exec("UPDATE `$table` SET filename=data");
                     $this->message("copied 'data' values to 'filename' column");
+                    $database->exec("UPDATE `$table` SET `data`=''");
                     $database->exec("ALTER TABLE `$table` DROP KEY data");
-                    // $database->exec("ALTER TABLE `$table` DROP INDEX `data_2`");
-                    // $database->exec("ALTER TABLE `$table` DROP DEFAULT");
+                    $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
+                    $this->message("populated 'data'");
                     $database->exec("ALTER TABLE `$table` MODIFY data JSON NOT NULL");
                     $this->message("updated 'data' schema to JSON NOT NULL");
-                    // $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\": ', `$table`.pageid, ',\"filename\" :\"', `$table`.filename, '\"}')");
-                    // $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
-                    $this->message("updated 'data' column with json string");
                 } catch (\Exception $e) {
                     $this->error($e->getMessage());
                 }

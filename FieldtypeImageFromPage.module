@@ -306,8 +306,8 @@ class FieldtypeImageFromPage extends Fieldtype
                     $database->exec("UPDATE `$table` SET filename=data");
                     $this->message("copied 'data' values to 'filename' column");
                     $database->exec("ALTER TABLE `$table` DROP KEY data");
-                    $database->exec("ALTER TABLE `$table` DROP INDEX `data_2`");
-                    $database->exec("ALTER TABLE `$table` DROP DEFAULT");
+                    // $database->exec("ALTER TABLE `$table` DROP INDEX `data_2`");
+                    // $database->exec("ALTER TABLE `$table` DROP DEFAULT");
                     $database->exec("ALTER TABLE `$table` MODIFY data JSON NOT NULL");
                     $this->message("updated 'data' schema to JSON NOT NULL");
                     // $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\":', `$table`.pageid, ',\"filename\":\"', `$table`.filename, '\"}')");

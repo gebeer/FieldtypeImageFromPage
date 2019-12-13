@@ -310,8 +310,8 @@ class FieldtypeImageFromPage extends Fieldtype
                     // $database->exec("ALTER TABLE `$table` DROP DEFAULT");
                     $database->exec("ALTER TABLE `$table` MODIFY data JSON NOT NULL");
                     $this->message("updated 'data' schema to JSON NOT NULL");
-                    // $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\":', `$table`.pageid, ',\"filename\":\"', `$table`.filename, '\"}')");
-                    $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
+                    $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\": ', `$table`.pageid, ',\"filename\" :\"', `$table`.filename, '\"}')");
+                    // $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
                     $this->message("updated 'data' column with json string");
                 } catch (\Exception $e) {
                     $this->error($e->getMessage());

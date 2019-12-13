@@ -30,7 +30,7 @@ class FieldtypeImageFromPage extends Fieldtype
     {
         return array(
             'title' => __('Image Reference From Another Page'),
-            'version' => 004,
+            'version' => 005,
             'summary' => __('Fieldtype that stores a reference to a single image from another page'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',
@@ -51,9 +51,8 @@ class FieldtypeImageFromPage extends Fieldtype
      */
     public function __construct()
     {
-        require_once(dirname(__FILE__) . '/ImageFromPage.php');
+        // require_once(dirname(__FILE__) . '/ImageFromPage.php');
     }
-
 
     /**
      * Return all compatible Fieldtypes 
@@ -73,27 +72,16 @@ class FieldtypeImageFromPage extends Fieldtype
      * Sanitize the value for runtime storage and return it.
      * @param Page $page
      * @param Field $field
-     * @param ImageFromPage $value
-     * @return ImageFromPage
+     * @param string $value json string
+     * @return string json string
      */
     public function sanitizeValue(Page $page, Field $field, $value)
     {
-        bd($value, 'sanitize');
-        // if it's not a ImageFromPage, then return a ImageFromPage
-        if (!$value instanceof ImageFromPage) {
-            if($obj = json_decode($value) instanceof \stdClass) {
-                $imagefrompage = $this->getBlankValue($page, $field);
-                $imagefrompage->set('pageid', $obj->pageid);
-                $imagefrompage->set('filename', $obj->filename);
-            } else {
-                $value = $this->getBlankValue($page, $field);
-            }
-        }
-        // if (!$value instanceof ImageFromPage) {
-        // }
+        // if it's not a json string, then return a json string with empty values
+        $obj = json_decode($value);
+        if(!isset($obj->pageid) && !isset($obj->filename)) return $this->toJson();
 
-        // if the filename changed, tell the $page that this field changed
-        if ($value->isChanged('filename') || $value->isChanged('pageid')) $page->trackChange($field->name);
+        $value = $this->wire('sanitizer')->text($value);
 
         return $value;
     }
@@ -103,24 +91,25 @@ class FieldtypeImageFromPage extends Fieldtype
      * 
      * @param Page $page
      * @param Field $field
-     * @return ImageFromPage
+     * @return string json string
      *
      */
     public function getBlankValue(Page $page, Field $field)
     {
-        return new ImageFromPage();
+        return $this->toJson();
     }
 
     /**
      * Format value for output
      * @param Page $page
      * @param Field $field
-     * @param ImageFromPage $value
+     * @param string $value json string
      * @return mixed Pageimage|null
      *    
      */
     public function ___formatValue(Page $page, Field $field, $value)
     {
+        $value = json_decode($value);
         if($value->filename && $value->pageid != 0) {
             $pageimage = $this->wire('pages')->get($value->pageid)->get($field->imagesfield)->getFile($value->filename);
             if ($pageimage && $pageimage instanceof Pageimage) {
@@ -131,28 +120,28 @@ class FieldtypeImageFromPage extends Fieldtype
         return null;
     }
 
+    /**
+     * converts values into json string
+     *
+     * @param integer $pageid
+     * @param string $filename
+     * @return string json string
+     */
+    public function toJson($pageid = 0, $filename = '') {
+        return json_encode(array('pageid' => $pageid, 'filename' => $filename));
+    }
 
     /**
      * Given a raw value (value as stored in database), return the value as it would appear in a Page object.
      *
      * @param Page $page
      * @param Field $field
-     * @param string|int $value
-     * @return void
+     * @param array $value
+     * @return string json string
      */
     public function ___wakeupValue(Page $page, Field $field, $value)
     {
-        bd($value, 'wakeup');
-        // get a blank ImageFromPage instance
-        $imagefrompage = $this->getBlankValue($page, $field);
-
-        // populate the image
-        $imagefrompage->filename = $value['data'];
-        $imagefrompage->pageid = $value['pageid'];
-        $imagefrompage->value = $this->wire('modules')->get('ImageFromPage')->__toString();
-        $imagefrompage->setTrackChanges(true);
-
-        return $imagefrompage;
+        return $this->toJson($value['pageid'], $value['filename']);
     }
 
     /**
@@ -160,32 +149,23 @@ class FieldtypeImageFromPage extends Fieldtype
      *
      * @param Page $page
      * @param Field $field
-     * @param object $value
-     * @return void
+     * @param string $value json string
+     * @return array properties string filename, int pageid, data json string
      */
     public function ___sleepValue(Page $page, Field $field, $value)
     {
 
-        bd($value, 'sleep');
-        if (!$value instanceof ImageFromPage) {
-            if($obj = json_decode($value) instanceof \stdClass) {
-                $imagefrompage = $this->getBlankValue($page, $field);
-                $imagefrompage->set('pageid', $obj->pageid);
-                $imagefrompage->set('filename', $obj->filename);
-            } else {
-                throw new WireException("Expecting an instance of ImageFromPage");
-            }
+        $obj = json_decode($value);
 
-        } else {
-            $imagefrompage = $value;
-        }
-
+        $filename = $this->wire('sanitizer')->string($obj->filename);
+        $pageid = $this->wire('sanitizer')->string($obj->pageid);
 
         $sleepValue = array(
-            'data' => $imagefrompage->filename,
-            'pageid' => $imagefrompage->pageid
+            'filename' => $filename,
+            'pageid' => $pageid,
+            'data' => $this->toJson($pageid, $filename)
         );
-
+        
         return $sleepValue;
     }
 
@@ -226,6 +206,12 @@ class FieldtypeImageFromPage extends Fieldtype
         return mime_content_type($image->filename);
     }
 
+    /**
+     * Hook function for adding custom property 'svgcontent' to a PageImage object 
+     *
+     * @param Hookevent $event
+     * @return string svg markup
+     */
     public function ___addPropertySvgcontent(Hookevent $event)
     {
         $event->return = $this->getFileContent($event->object);
@@ -265,17 +251,19 @@ class FieldtypeImageFromPage extends Fieldtype
         // get the default schema
         $schema = parent::getDatabaseSchema($field);
 
-        $schema['data'] = "VARCHAR(255) NOT NULL DEFAULT ''";     // image filename without path (reusing the 'data' field from default schema)
+        $schema['data'] = "JSON NOT NULL";     // json string (reusing the 'data' field from default schema)
         $schema['pageid'] = "INT NOT NULL";    // page id of page that holds the referenced image
+        $schema['filename'] = "VARCHAR(255) NOT NULL";     // image filename without path 
 
-        $schema['keys']['data'] = 'FULLTEXT KEY `data` (`data`)';
+        // $schema['keys']['data'] = 'FULLTEXT KEY `data` (`data`)';
+        $schema['keys']['data'] = 'KEY `data` (`data`)';
         $schema['keys']['pageid'] = "KEY pageid (pageid)";
-
+        $schema['keys']['filename'] = 'FULLTEXT KEY `filename` (`filename`)';
         if ($field->id) $this->updateDatabaseSchema($field, $schema);
-
+        
         return $schema;
     }
-
+    
     /**
      * Update the DB schema, if necessary
      * 
@@ -286,30 +274,46 @@ class FieldtypeImageFromPage extends Fieldtype
     protected function updateDatabaseSchema(Field $field, array $schema)
     {
 
-        $requiredVersion = 1;
+        $requiredVersion = 2;
         $schemaVersion = (int) $field->get('schemaVersion');
-
+        bd($schemaVersion);
         if ($schemaVersion >= $requiredVersion) {
             // already up-to-date
             return;
         }
-
-        if ($schemaVersion == 0) {
-            // update schema to v1: add 'pageid' column	
-            $schemaVersion = 1;
+        if ($schemaVersion == 1) {
+            /**
+             * update schema to v2: 
+             * add 'filename' column
+             * copy values from data to filename
+             * update column data with json string
+             */
+            // 	
+            $schemaVersion = 2;
             $database = $this->wire('database');
             $table = $database->escapeTable($field->getTable());
             $query = $database->prepare("SHOW TABLES LIKE '$table'");
             $query->execute();
             $row = $query->fetch(\PDO::FETCH_NUM);
             $query->closeCursor();
+            bd($row);
             if (!empty($row)) {
-                $query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE field='pageid'");
+                $query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE field='filename'");
                 $query->execute();
                 if (!$query->rowCount()) try {
-                    $database->exec("ALTER TABLE `$table` ADD pageid $schema[pageid] AFTER data");
-                    $this->message("Added 'pageid' column to '$field->table'");
-                } catch (Exception $e) {
+                    $database->exec("ALTER TABLE `$table` ADD `filename` $schema[filename] AFTER pageid");
+                    $this->message("Added 'filename' column to '$field->table'");
+                    $database->exec("UPDATE `$table` SET filename=data");
+                    $this->message("copied 'data' values to 'filename' column");
+                    $database->exec("ALTER TABLE `$table` DROP KEY data");
+                    $database->exec("ALTER TABLE `$table` DROP INDEX `data_2`");
+                    $database->exec("ALTER TABLE `$table` DROP DEFAULT");
+                    $database->exec("ALTER TABLE `$table` MODIFY data JSON NOT NULL");
+                    $this->message("updated 'data' schema to JSON NOT NULL");
+                    // $database->exec("UPDATE `$table` SET data=CONCAT('{\"pageid\":', `$table`.pageid, ',\"filename\":\"', `$table`.filename, '\"}')");
+                    $database->exec("UPDATE `$table` SET data=CONCAT(JSON_OBJECT(\"pageid\", `$table`.pageid, \"filename\", `$table`.filename))");
+                    $this->message("updated 'data' column with json string");
+                } catch (\Exception $e) {
                     $this->error($e->getMessage());
                 }
             }
@@ -332,7 +336,7 @@ class FieldtypeImageFromPage extends Fieldtype
      */
     public function getMatchQuery($query, $table, $subfield, $operator, $value)
     {
-        if (!$subfield || $subfield == 'filename') $subfield = 'data';
+        if (!$subfield || $subfield = 'value') $subfield = 'data';
         if ($subfield != 'data' || $this->wire('database')->isOperator($operator)) {
             // if dealing with something other than filename, or operator is native to SQL,
             // then let Fieldtype::getMatchQuery handle it instead

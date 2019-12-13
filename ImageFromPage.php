@@ -7,7 +7,7 @@ class ImageFromPage extends WireData
 	public function __construct() {
 		$this->set('filename', ''); 
         $this->set('pageid', 0); 
-        $this->set('value', $this->__toString());
+        $this->set('value', 0); 
 	}
 
     public function set($key, $value)
@@ -28,7 +28,7 @@ class ImageFromPage extends WireData
      */
     public function __toString()
     {
-        return "{\"pageid\": $this->pageid, \"filename\": \"$this->filename\"}";
+        return json_encode(array('pageid' => $this->pageid, 'filename' => $this->filename, 'value' => $this->value));
     }
 
 }

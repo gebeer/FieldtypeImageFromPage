@@ -36,7 +36,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         return array(
             'title' => 'Select Image From Page',
-            'version' => 004,
+            'version' => 005,
             'summary' => __('Inputfield to select a single image from images on a predefined page and it\'s children.'),
             'author' => 'Gerhard Sitzmann',
             'href' => '',
@@ -66,14 +66,14 @@ class InputfieldImageFromPage extends Inputfield implements Module
     public function populateConfigJs()
     {
         $input = $this->wire('input');
-        if($this->process == 'ProcessPageEdit') { // we are on a page edit screen
+        if ($this->process == 'ProcessPageEdit') { // we are on a page edit screen
             $editPageUrl = $this->wire('pages')->get($input->id)->editUrl . "&InputfieldImageFromPage=1";
         } else { // other page 
             $editPageUrl = $this->page->url . "?InputfieldImageFromPage=1";
         }
         $this->wire('config')->js($this->className, array(
-			'url' => $editPageUrl
-		));
+            'url' => $editPageUrl
+        ));
     }
 
     /**
@@ -89,20 +89,14 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function setAttribute($key, $value)
     {
-        if ($key == 'value' && !$value instanceof ImageFromPage) {
-            if(is_array($value) && isset($value['pageid']) && isset($value['filename'])){
-                $tmp = new ImageFromPage;
-                $tmp->set('pageid', $value['pageid']);
-                $tmp->set('filename', $value['filename']);
-                $value = $tmp;
-                unset($tmp);
-            } elseif (!$value) {
-                $value = new ImageFromPage;
-            }
-
-        }
-        if ($key == 'value' && !$value instanceof ImageFromPage && !is_null($value)) {
-            throw new WireException("This input only accepts a ImageFromPage for it's value");
+        if ($key == 'value' && empty($value)) {
+            // $value = new ImageFromPage;
+            $value = $this->toJson();
+            // bd($value, 'setAttribute empty');
+            // throw new WireException("This input only accepts a ImageFromPage for it's value");
+        } elseif ($key == 'value' && $value) {
+            // $value = $this->toJson($value->pageid, $value->filename);
+            bd($value, 'setAttribute');
         }
 
         return parent::setAttribute($key, $value);
@@ -113,6 +107,11 @@ class InputfieldImageFromPage extends Inputfield implements Module
         return (!$this->value);
     }
 
+    public function toJson($pageid = 0, $filename = '') {
+        return json_encode(array('pageid' => $pageid, 'filename' => $filename));
+    }
+
+
     /**
      * Return the completed output of Inputfield select file
      *
@@ -121,19 +120,20 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function ___render()
     {
+        // bd($this->attr('value'), 'value');
         $this->populateValues();
         $this->populateConfigJs();
         $input = $this->wire('input');
 
-        if($input->InputfieldImageFromPage && $input->pageid) {
+        if ($input->InputfieldImageFromPage && $input->pageid) {
             echo $this->getThumbnailsForPage($input->pageid);
             exit;
         }
 
-        $id = $this->attr('id');
+        // $id = $this->attr('id');
         $name = $this->attr('name');
-        $value = $this->attr('value');
-        if($value->pageid === -1) {
+        $value = json_decode($this->attr('value'));
+        if ($value->pageid === -1) {
             $message = $this->_("The referenced image was deleted. Choose a new image");
             $this->page->error($this->_("The referenced image was deleted. Choose a new image"));
             $this->error($message);
@@ -178,7 +178,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         $wrapper = new InputfieldWrapper;
         foreach ($this->imagePages as $p) {
-           $wrapper->add($this->renderThumbnailsForPage($p));
+            $wrapper->add($this->renderThumbnailsForPage($p));
         }
 
         return $wrapper->render();
@@ -193,10 +193,10 @@ class InputfieldImageFromPage extends Inputfield implements Module
     public function renderThumbnailsForPage($page)
     {
         $button = "<a href='{$page->editUrl}&field={$this->imagesfield}&from=imagefrompage' class='imagefrompage_editimages pw-modal' title='" . $this->_('Upload Images') . "' uk-tooltip data-buttons='button#submit_save' data-autoclose><span class='fa fa-upload'></span></a>";
-        
+
 
         $markup = '<ul class="uk-thumbnav uk-grid-width-1-6" data-pageid="' . $page->id . '">';
-        if($this->useajax) $markup .= $this->getThumbnailsForPage($page->id);
+        if (!$this->useajax) $markup .= $this->getThumbnailsForPage($page->id);
         $markup .= '</ul>';
         $markupField = new InputfieldMarkup; // $this->wire('modules')->get('InputfieldMarkup');
         $markupField->class('imagefrompage_thumbholder');
@@ -210,7 +210,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
     }
 
     /**
-     * renders thumbnails markupfor an image page
+     * renders thumbnails markup for an image page
      *
      * @param int $page
      * @return string thumbnail markup for page images
@@ -252,13 +252,14 @@ class InputfieldImageFromPage extends Inputfield implements Module
      *
      * @return Pages
      */
-    public function getImagePages() {
+    public function getImagePages()
+    {
         $pages = $this->wire('pages')->find($this->imagespage, array('include' => 'hidden'));
-        if($this->includechildren) {
-            foreach($pages->first()->children('include=hidden') as $child) {
-                if($child->hasField($this->imagesfield)) $pages->add($child);
+        if ($this->includechildren) {
+            foreach ($pages->first()->children('include=hidden') as $child) {
+                if ($child->hasField($this->imagesfield)) $pages->add($child);
             }
-        } 
+        }
         return $pages;
     }
 
@@ -271,19 +272,21 @@ class InputfieldImageFromPage extends Inputfield implements Module
      */
     public function ___processInput(WireInputData $input)
     {
-        // bd($input);
         $name = $this->attr('name');
-        bd($this->attr('value'));  
-        $imagefrompage = $this->attr('value');
-        $filename = "_{$name}_filename";
-        $pageid = "_{$name}_pageid";
+        $value = $this->attr('value');
+        $obj = json_decode($value);
+        if (!isset($obj->filename) && !isset($obj->pageid)) return $this;
+       
+        $filename = $input["_{$name}_filename"];
+        $pageid = $input["_{$name}_pageid"];
 
-        if (!isset($input->$filename) && !isset($input->$pageid)) return $this;
+        if($obj->filename == $filename && $obj->pageid == $pageid) return $this;
 
-        $imagefrompage->set('filename', $this->wire('sanitizer')->filename($input->$filename));
-        $imagefrompage->set('pageid', (int) $input->$pageid);
-        $imagefrompage->set('filename', $this->wire('sanitizer')->filename($input->$filename));
-        $imagefrompage->set('value', $this->__toString());
+        $obj->pageid = $pageid;
+        $obj->filename = $filename;
+        $this->attr('value', json_encode($obj));
+        $page = ($this->hasPage) ? $this->hasPage : $this->page;
+        $page->set($name, $this->attr('value'));
 
         return $this;
     }

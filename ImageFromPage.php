@@ -1,7 +1,6 @@
 <?php
 
 namespace ProcessWire;
-
 class ImageFromPage extends WireData
 {
 	public function __construct() {

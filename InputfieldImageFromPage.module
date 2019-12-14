@@ -1,7 +1,6 @@
 <?php
 
 namespace ProcessWire;
-
 /**
  * Inputfield 'Image Picker' provides a means for selecting images from a predefined page and it's children.
  * Per field you can set a page to list from.
@@ -154,7 +153,7 @@ class InputfieldImageFromPage extends Inputfield implements Module
         $url = (isset($image)) ? $image->width($previewWidth)->url : $blankSrc;
         $info = (isset($image)) ? $this->renderTooltip($image) : '';
         $out = "<div class='uk-panel uk-panel-box uk-margin-bottom'>
-        <span uk-icon='icon: trash' uk-tooltip='title: Remove Image'></span>
+        <span class='fa fa-trash' uk-tooltip='title: Remove Image'></span>
         <img src='{$url}' style='width: {$previewWidth}px; max-width: {$previewWidth}px' data-src='{$blankSrc}'>
         <div class='uk-thumbnail-caption' style='max-width: {$previewWidth}px'>{$info}</div>";
         $out .= "</div>";
@@ -167,8 +166,6 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         $jsonValue = '{"pageid": ' . $value->pageid . ', "filename": "' . $value->filename . '"}';
         return "<div>
-        <input type='hidden' class='imagefrompage_filename' name='_{$name}_filename' id='_{$name}_filename' value='{$value->filename}' \>
-        <input type='hidden' class='imagefrompage_pageid' name='_{$name}_pageid' id='_{$name}_pageid' value='{$value->pageid}' \>
         <input type='hidden' class='imagefrompage_value' name='{$name}' id='{$name}' value='{$jsonValue}' \>
         </div>";
     }
@@ -273,17 +270,16 @@ class InputfieldImageFromPage extends Inputfield implements Module
     {
         $name = $this->attr('name');
         $value = $this->attr('value');
-        $obj = json_decode($value);
-        if (!isset($obj->filename) && !isset($obj->pageid)) return $this;
+        $valueObj = json_decode($value);
+        $newValue = json_decode($input[$name]);
+        if (!isset($newValue->filename) && !isset($newValue->pageid)) return $this;
        
-        $filename = $input["_{$name}_filename"];
-        $pageid = $input["_{$name}_pageid"];
+        $filename = $newValue->filename;
+        $pageid = $newValue->pageid;
+        if($valueObj->filename == $filename && $valueObj->pageid == $pageid) return $this;
 
-        if($obj->filename == $filename && $obj->pageid == $pageid) return $this;
+        $this->attr('value', json_encode($newValue));
 
-        $obj->pageid = $pageid;
-        $obj->filename = $filename;
-        $this->attr('value', json_encode($obj));
         $page = ($this->hasPage) ? $this->hasPage : $this->page;
         $page->set($name, $this->attr('value'));
 

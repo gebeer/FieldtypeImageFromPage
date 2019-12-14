@@ -13,16 +13,13 @@ var InputfieldImageFromPage = {
         var preview = field.querySelector('div.uk-panel img');
         var caption = field.querySelector('div.uk-panel .uk-thumbnail-caption');
         var remove = field.querySelector('div.uk-panel > span');
-        var inputFilename = field.querySelector('input.imagefrompage_filename');
-        var inputPageid = field.querySelector('input.imagefrompage_pageid');
         var inputValue = field.querySelector('input.imagefrompage_value');
         var files = field.querySelectorAll('.uk-thumbnav img');
 
         remove.addEventListener('click', function (e) {
             preview.setAttribute('src', preview.getAttribute('data-src'));
             caption.innerHTML = '';
-            inputFilename.value = '';
-            inputPageid.value = 0;
+            inputValue.value = '';
         });
         files.forEach(file => {
             file.addEventListener('click', function () {
@@ -31,8 +28,6 @@ var InputfieldImageFromPage = {
                 var filename = file.getAttribute('data-filename');
                 var pageid = file.getAttribute('data-pageid');
                 preview.setAttribute('src', src);
-                inputFilename.value = filename;
-                inputPageid.value = pageid;
                 inputValue.value = JSON.stringify({"pageid": pageid, "filename": filename});
                 caption.innerHTML = fileinfo;
             })

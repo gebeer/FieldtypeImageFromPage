@@ -287,13 +287,13 @@ class FieldtypeImageFromPage extends Fieldtype
     protected function updateDatabaseSchema(Field $field, array $schema)
     {
 
-        $requiredVersion = 2;
+        $requiredVersion = 1;
         $schemaVersion = (int) $field->get('schemaVersion');
         if ($schemaVersion >= $requiredVersion) {
             // already up-to-date
             return;
         }
-        if ($schemaVersion == 1) {
+        if ($schemaVersion == 0) {
             /**
              * update schema to v2: 
              * add 'filename' column
@@ -301,7 +301,7 @@ class FieldtypeImageFromPage extends Fieldtype
              * update column data with json string
              */
             // 	
-            $schemaVersion = 2;
+            $schemaVersion = 1;
             $database = $this->wire('database');
             $table = $database->escapeTable($field->getTable());
             $query = $database->prepare("SHOW TABLES LIKE '$table'");

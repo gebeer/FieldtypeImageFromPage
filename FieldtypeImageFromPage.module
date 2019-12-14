@@ -248,20 +248,33 @@ class FieldtypeImageFromPage extends Fieldtype
     public function getDatabaseSchema(Field $field)
     {
 
-        // get the default schema
-        $schema = parent::getDatabaseSchema($field);
+        // do not get the default schema because it assigns an index and key to data column which is not allowed for JSON data type
+        // $schema = parent::getDatabaseSchema($field);
 
-        $schema['data'] = "JSON NOT NULL";     // json string (reusing the 'data' field from default schema)
-        $schema['pageid'] = "INT NOT NULL";    // page id of page that holds the referenced image
-        $schema['filename'] = "VARCHAR(255) NOT NULL";     // image filename without path 
-
-        // $schema['keys']['data'] = 'FULLTEXT KEY `data` (`data`)';
-        $schema['keys']['data'] = 'KEY `data` (`data`)';
-        $schema['keys']['pageid'] = "KEY pageid (pageid)";
-        $schema['keys']['filename'] = 'FULLTEXT KEY `filename` (`filename`)';
-        if ($field->id) $this->updateDatabaseSchema($field, $schema);
-        
-        return $schema;
+        // return $schema;
+		$engine = $this->wire('config')->dbEngine; 
+		$charset = $this->wire('config')->dbCharset;
+		$schema = array(
+			'pages_id' => 'int UNSIGNED NOT NULL', 
+            'data' => 'JSON NOT NULL',
+            'pageid' => 'INT NOT NULL',
+            'filename' => 'VARCHAR(255) NOT NULL',
+			'keys' => array(
+                'primary' => 'PRIMARY KEY (`pages_id`)',
+                'pageid' => 'KEY (`pageid`)',
+                'filename' => 'FULLTEXT(`filename`)'
+			),
+			// additional data 
+			'xtra' => array(
+				// any optional statements that should follow after the closing paren (i.e. engine, default charset, etc)
+				'append' => "ENGINE=$engine DEFAULT CHARSET=$charset", 
+				
+				// true (default) if this schema provides all storage for this fieldtype.
+				// false if other storage is involved with this fieldtype, beyond this schema (like repeaters, PageTable, etc.)
+				'all' => true, 
+			)
+		); 
+		return $schema; 
     }
     
     /**

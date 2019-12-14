@@ -273,7 +273,10 @@ class FieldtypeImageFromPage extends Fieldtype
 				// false if other storage is involved with this fieldtype, beyond this schema (like repeaters, PageTable, etc.)
 				'all' => true, 
 			)
-		); 
+        );
+        
+        if ($field->id) $this->updateDatabaseSchema($field, $schema);
+
 		return $schema; 
     }
     

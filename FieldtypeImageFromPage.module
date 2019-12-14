@@ -346,15 +346,26 @@ class FieldtypeImageFromPage extends Fieldtype
      */
     public function getMatchQuery($query, $table, $subfield, $operator, $value)
     {
-        if (!$subfield || $subfield = 'value') $subfield = 'data';
-        if ($subfield != 'data' || $this->wire('database')->isOperator($operator)) {
-            // if dealing with something other than filename, or operator is native to SQL,
-            // then let Fieldtype::getMatchQuery handle it instead
-            return parent::getMatchQuery($query, $table, $subfield, $operator, $value);
-        }
-        // if we get here, then we're performing either %= (LIKE and variations) or *= (FULLTEXT and variations)
-        $ft = new DatabaseQuerySelectFulltext($query);
-        $ft->match($table, $subfield, $operator, $value);
+        $database = $this->wire("database");
+		if(empty($subfield) || $subfield == "data") {
+			$path = '$.*';
+		} else {
+			$path = '$.' . $subfield/*  . ".value" */;
+		}
+        // bd($path, 'path');
+        // bd($value, 'value');
+		$table = $database->escapeTable($table);
+		$value = $database->escapeStr($value);
+		if($operator == "=") {
+            $query->where("JSON_SEARCH({$table}.data, 'one', '$value', NULL, '$path') IS NOT NULL");	
+            // bd($query, 'query');		
+		} else if($operator == "*=" || $operator == "%=") {
+			$query->where("JSON_SEARCH({$table}.data, 'one', '%$value%', NULL, '$path') IS NOT NULL");			
+		} else if($operator == "^=") {
+			$query->where("JSON_SEARCH({$table}.data, 'one', '$value%', NULL, '$path') IS NOT NULL");			
+		} else if($operator == "$=") {
+			$query->where("JSON_SEARCH({$table}.data, 'one', '%$value', NULL, '$path') IS NOT NULL");			
+		}
         return $query;
     }
 

@@ -96,7 +96,6 @@ class InputfieldImageFromPage extends Inputfield implements Module
             // throw new WireException("This input only accepts a ImageFromPage for it's value");
         } elseif ($key == 'value' && $value) {
             // $value = $this->toJson($value->pageid, $value->filename);
-            bd($value, 'setAttribute');
         }
 
         return parent::setAttribute($key, $value);

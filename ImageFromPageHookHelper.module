@@ -48,8 +48,9 @@ class ImageFromPageHookHelper extends WireData implements Module
         $thisFieldname = $event->object->field;
         // get fields of type imagefrompage that have this imagesfield assigned
         $fields = $this->getRelevantFields($thisFieldname);
-        $imagePageIds = $this->getImagePageIds($fields);
         $deleted = $event->arguments(0);
+        $editPage = $deleted->page;
+        $imagePageIds = $this->getImagePageIds($fields, $editPage);
         $pageid = $deleted->page->id;
         if (!in_array($pageid, $imagePageIds)) return;
         $filename = $deleted->basename;
@@ -106,9 +107,10 @@ class ImageFromPageHookHelper extends WireData implements Module
      * Collects IDs of all pages and their children that  hold images for fields of type FieldtypeImageFromPage
      *
      * @param array $fields all relevant fields of type FieldtypeImageFromPage
+     * @param Page $editPage page that is being edited
      * @return array array of page ids
      */
-    public function getImagePageIds($fields)
+    public function getImagePageIds($fields, $editPage)
     {
         $ids = array();
         foreach ($fields as $f) {
@@ -121,6 +123,7 @@ class ImageFromPageHookHelper extends WireData implements Module
                     $pages->add($p->children('include=all'));
                 }
             }
+            if($field->frompage) $pages->add($editPage);
         }
 
         return $pages->explode('id');
@@ -136,7 +139,7 @@ class ImageFromPageHookHelper extends WireData implements Module
     {
         $fields = array();
         foreach ($this->wire('fields') as $f) {
-            if ($f->type instanceof FieldtypeImageFromPage && $f->imagesfield == $imagesfield) $fields[] = $f;
+            if ($f->type instanceof FieldtypeImageFromPage && ($f->imagesfield == $imagesfield || $f->imagesfieldpage == $imagesfield)) $fields[] = $f;
         }
         return $fields;
     }
